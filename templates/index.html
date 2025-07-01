@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predicción de Cáncer de Mama</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        {% if logo_path %}
+        <div class="logo">
+            <img src="{{ logo_path }}" alt="Hospital Logo">
+        </div>
+        {% endif %}
+        <h1>Predicción de Cáncer de Mama</h1>
+        <p class="desc">Ingrese los valores clínicos para predecir si el tumor es <b>benigno</b> o <b>maligno</b>. Presentación para Inteligencia de Negocios.</p>
+        <form method="post" class="formulario" id="formulario-prediccion">
+            <div class="inputs">
+                <div class="input-group" style="flex-basis:100%;">
+                    <label for="id_paciente_selector">Cargar datos de paciente:</label>
+                    <select id="id_paciente_selector">
+                        <option value="">-- Seleccione un paciente --</option>
+                        {% for pid, label in id_pacientes %}
+                        <option value="{{ pid }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" id="btn-cargar-paciente">Cargar datos</button>
+                </div>
+                {% for col in input_columns %}
+                <div class="input-group">
+                    <label for="{{ col }}">{{ col.replace('_', ' ').title() }}</label>
+                    <input type="number" step="any" name="{{ col }}" id="{{ col }}" value="{{ values[col] }}" required>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="submit">Predecir</button>
+        </form>
+        <script>
+        document.getElementById('btn-cargar-paciente').onclick = function() {
+            var id = document.getElementById('id_paciente_selector').value;
+            if (!id) return;
+            fetch('/get_paciente/' + id)
+                .then(response => response.json())
+                .then(data => {
+                    for (const [key, value] of Object.entries(data)) {
+                        var input = document.getElementById(key);
+                        if (input) input.value = value;
+                    }
+                });
+        };
+        </script>
+        {% if resultado %}
+        <div class="resultado">
+            <h2>Diagnóstico: <span class="diagnostico {{ resultado|lower }}">{{ resultado }}</span></h2>
+            <div class="probs">
+                <h3>Probabilidades:</h3>
+                <ul>
+                    {% for clase, proba in probabilidades.items() %}
+                    <li><b>{{ clase }}:</b> {{ '%.2f'|format(proba*100) }}%</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="confianza">
+                <b>Confianza:</b> {{ confianza }}
+            </div>
+            {% if recomendacion %}
+            <div class="recomendacion">{{ recomendacion }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% if error %}
+        <div class="error">Error: {{ error }}</div>
+        {% endif %}
+    </div>
+</body>
+</html> 
