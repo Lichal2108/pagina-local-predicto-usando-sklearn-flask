@@ -3,18 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Predicción de Cáncer de Mama</title>
+    <title>Inteligencia de Negocios - Predictor de Cáncer de Mama</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- Header Principal -->
+    <header class="main-header">
+        <div class="header-content">
+            <h1 class="main-title">Inteligencia de Negocios</h1>
+            <h2 class="subtitle">Predictor de Cáncer de Mama</h2>
+            <p class="header-description">Sistema de Predicción Inteligente para Diagnóstico Médico</p>
+        </div>
+    </header>
+
     <div class="container">
         {% if logo_path %}
         <div class="logo">
             <img src="{{ logo_path }}" alt="Hospital Logo">
         </div>
         {% endif %}
-        <h1>Predicción de Cáncer de Mama</h1>
+        
+        <!-- Sección de Información -->
+        <div class="info-section">
+            <h3>¿Qué es este sistema?</h3>
+            <p>Este predictor utiliza algoritmos de Machine Learning para analizar datos clínicos y predecir la probabilidad de que un tumor sea benigno o maligno, ayudando a los profesionales médicos en la toma de decisiones clínicas.</p>
+            
+            <div class="features">
+                <h4>Características del Sistema:</h4>
+                <ul>
+                    <li>✅ Análisis basado en múltiples variables clínicas</li>
+                    <li>✅ Predicción con alta precisión</li>
+                    <li>✅ Interfaz intuitiva y fácil de usar</li>
+                    <li>✅ Resultados en tiempo real</li>
+                    <li>✅ Recomendaciones personalizadas</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3 class="form-title">Predicción de Cáncer de Mama</h3>
         <p class="desc">Ingrese los valores clínicos para predecir si el tumor es <b>benigno</b> o <b>maligno</b>. Presentación para Inteligencia de Negocios.</p>
+        
         <form method="post" class="formulario" id="formulario-prediccion">
             <div class="inputs">
                 <div class="input-group" style="flex-basis:100%;">
@@ -36,6 +64,7 @@
             </div>
             <button type="submit">Predecir</button>
         </form>
+        
         <script>
         document.getElementById('btn-cargar-paciente').onclick = function() {
             var id = document.getElementById('id_paciente_selector').value;
@@ -50,6 +79,7 @@
                 });
         };
         </script>
+        
         {% if resultado %}
         <div class="resultado">
             <h2>Diagnóstico: <span class="diagnostico {{ resultado|lower }}">{{ resultado }}</span></h2>
@@ -69,9 +99,19 @@
             {% endif %}
         </div>
         {% endif %}
+        
         {% if error %}
         <div class="error">Error: {{ error }}</div>
         {% endif %}
+        
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <p><strong>Inteligencia de Negocios</strong> - Sistema de Predicción Médica</p>
+                <p>Desarrollado con Machine Learning y Flask</p>
+                <p class="disclaimer">Este sistema es una herramienta de apoyo y no reemplaza el diagnóstico médico profesional.</p>
+            </div>
+        </footer>
     </div>
 </body>
 </html> 

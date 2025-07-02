@@ -2,8 +2,98 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
+import google.generativeai as genai
 from sklearn.base import BaseEstimator, TransformerMixin
 from flask import Flask, render_template, request, url_for, send_from_directory
+from config import Config
+
+# =============================================================================
+# Configuración de Gemini API
+# =============================================================================
+# Configurar la API key de Gemini desde la configuración
+genai.configure(api_key=Config.GEMINI_API_KEY)
+
+# Configurar el modelo
+model = genai.GenerativeModel(Config.MODEL_NAME)
+
+# =============================================================================
+# Función para generar recomendaciones con Gemini
+# =============================================================================
+def generar_recomendacion_gemini(diagnostico, probabilidades, confianza):
+    """
+    Genera recomendaciones personalizadas usando Gemini API
+    """
+    try:
+        if not Config.is_gemini_available():
+            # Si no hay API key, usar recomendaciones predefinidas
+            return generar_recomendacion_basica(diagnostico)
+        
+        # Prompt cuidadosamente diseñado para evitar automedicación
+        prompt = f"""
+        Eres un asistente médico virtual especializado en cáncer de mama. 
+        
+        Contexto del diagnóstico:
+        - Resultado: {diagnostico}
+        - Probabilidades: {probabilidades}
+        - Nivel de confianza: {confianza}
+        
+        IMPORTANTE: Tu respuesta debe seguir estas pautas estrictas:
+        1. NO recomiendes medicamentos específicos
+        2. NO sugieras automedicación
+        3. NO proporciones dosis o tratamientos farmacológicos
+        4. Enfócate en recomendaciones de estilo de vida, seguimiento médico y apoyo emocional
+        5. Siempre enfatiza la importancia de consultar con profesionales médicos
+        6. Mantén un tono profesional pero empático
+        7. Limita la respuesta a máximo 3 párrafos
+        8. NO sugieras remedios caseros o tratamientos alternativos no médicos
+        
+        Genera recomendaciones personalizadas que incluyan:
+        - Pasos inmediatos a seguir
+        - Recomendaciones de estilo de vida saludable
+        - Importancia del seguimiento médico profesional
+        - Recursos de apoyo emocional disponibles
+        
+        Responde en español de manera clara, compasiva y profesional.
+        """
+        
+        response = model.generate_content(prompt)
+        recomendacion = response.text.strip()
+        
+        # Limitar la longitud de la recomendación
+        if len(recomendacion) > Config.MAX_RECOMMENDATION_LENGTH:
+            recomendacion = recomendacion[:Config.MAX_RECOMMENDATION_LENGTH] + "..."
+        
+        return recomendacion
+        
+    except Exception as e:
+        print(f"Error al generar recomendación con Gemini: {e}")
+        return generar_recomendacion_basica(diagnostico)
+
+def generar_recomendacion_basica(diagnostico):
+    """
+    Recomendaciones básicas cuando no hay API key disponible
+    """
+    if diagnostico == 'Benigno':
+        return """El resultado indica un diagnóstico benigno. Se recomienda:
+        
+        • Continuar con controles médicos regulares según lo indique su médico
+        • Mantener hábitos saludables: alimentación balanceada, ejercicio regular y descanso adecuado
+        • Realizar autoexámenes mensuales y mamografías anuales según las recomendaciones médicas
+        • Consultar inmediatamente si nota cambios en sus senos
+        
+        Recuerde que este resultado es una herramienta de apoyo y debe ser interpretado por un profesional médico."""
+    
+    elif diagnostico == 'Maligno':
+        return """El resultado indica un diagnóstico que requiere atención médica inmediata. Se recomienda:
+        
+        • Acudir a un especialista en oncología lo antes posible para una evaluación completa
+        • Solicitar estudios adicionales como biopsia, resonancia magnética o tomografía según indique el médico
+        • Mantener la calma y buscar apoyo emocional de familiares, amigos o grupos de apoyo
+        • Preparar preguntas para la consulta médica sobre opciones de tratamiento
+        
+        Es fundamental recordar que el diagnóstico temprano mejora significativamente las opciones de tratamiento."""
+    
+    return "Consulte con su médico para interpretar los resultados."
 
 # =============================================================================
 # Definición de la clase usada durante el entrenamiento
@@ -54,6 +144,10 @@ try:
     modelo_final = joblib.load('final_model.pkl')
 
     print("✅ Artefactos cargados correctamente.")
+    if Config.is_gemini_available():
+        print("✅ API de Gemini configurada correctamente.")
+    else:
+        print("⚠️  API de Gemini no configurada. Se usarán recomendaciones básicas.")
 
     df_temp = pd.read_csv('breast_cancer_dataset_peru.csv', sep=';')
     df_temp = df_temp.rename(columns=renombrar_columnas)
@@ -154,24 +248,36 @@ def index():
     error = None
     recomendacion = None
     values = {col: '' for col in input_columns}
+    
     if request.method == 'POST':
         try:
             values = {col: float(request.form.get(col, 0.0)) for col in input_columns}
             pred = predecir_diagnostico(values)
+            
             if 'error' in pred:
                 error = pred['error']
             else:
                 resultado = pred['diagnostico']
                 probabilidades = pred['probabilidades']
                 confianza = pred['confianza']
-                if resultado == 'Benigno':
-                    recomendacion = "El resultado es benigno. Se recomienda continuar con controles médicos regulares y mantener hábitos saludables."
-                elif resultado == 'Maligno':
-                    recomendacion = "El resultado es maligno. Se recomienda acudir a un especialista lo antes posible para una evaluación y tratamiento oportuno."
+                
+                # Generar recomendación personalizada con Gemini
+                recomendacion = generar_recomendacion_gemini(resultado, probabilidades, confianza)
+                
         except Exception as e:
             error = str(e)
+    
     logo_path = url_for('logo')
-    return render_template('index.html', input_columns=input_columns, values=values, resultado=resultado, probabilidades=probabilidades, confianza=confianza, error=error, logo_path=logo_path, recomendacion=recomendacion, id_pacientes=id_pacientes)
+    return render_template('index.html', 
+                         input_columns=input_columns, 
+                         values=values, 
+                         resultado=resultado, 
+                         probabilidades=probabilidades, 
+                         confianza=confianza, 
+                         error=error, 
+                         logo_path=logo_path, 
+                         recomendacion=recomendacion, 
+                         id_pacientes=id_pacientes)
 
 if __name__ == "__main__":
     app.run(debug=True)
